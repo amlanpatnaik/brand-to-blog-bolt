@@ -155,6 +155,7 @@ Extract the following information and return as JSON:
   },
   "seo_opportunities": ["SEO opportunity 1", "SEO opportunity 2", "SEO opportunity 3"],
   "keyword_suggestions": ["kw1","kw2","kw3","kw4","kw5","kw6","kw7","kw8","kw9","kw10"],
+  "seasonal_keyword_suggestions": ["season/event/occasion-aware keyword 1", "season/event/occasion-aware keyword 2", "season/event/occasion-aware keyword 3", "season/event/occasion-aware keyword 4", "season/event/occasion-aware keyword 5", "season/event/occasion-aware keyword 6"],
   "structured_raw_text_summary": "brief 100-word summary of the site's core content focus"
 }
 
@@ -164,7 +165,8 @@ Rules:
 - upcoming_events and gifting_occasions: think 3–8 weeks ahead from ${todayStr}. Examples: Mother's Day, Father's Day, Valentine's Day, Diwali, Christmas, Hanukkah, back-to-school, Black Friday, etc. Only include ones actually upcoming.
 - seasonal_activities: identify real activities people do at this time of year that fit this brand's products naturally (e.g., beach trips, gardening, yoga, self-care routines, reading, gifting, home refresh, etc.).
 - If a value is unclear, infer carefully from context. Use "unknown" only as last resort.
-- keyword_suggestions must be realistic search terms people would use.
+- keyword_suggestions must be realistic search terms people would use based on the brand's products, niche, and audience — same logic as before.
+- seasonal_keyword_suggestions must be 6 ADDITIONAL keywords (do not repeat any from keyword_suggestions) that are specifically driven by: (1) the current season, (2) upcoming events and holidays in the next 3–8 weeks, (3) gifting occasions, and (4) seasonal activities relevant to this brand's niche and geography. Examples: "summer self-care gifts", "Father's Day candle gift", "back to school wellness routine", "spring cleaning aromatherapy", "holiday gift set under 50". Make them feel timely and search-realistic.
 - blog_post_examples should cover 3-5 of the strongest or most representative posts if available.
 - Return valid JSON only.`;
 }
@@ -306,7 +308,12 @@ Deno.serve(async (req: Request) => {
       blog_post_examples: parsed.blog_post_examples || [],
       seasonal_context: parsed.seasonal_context || null,
       seo_opportunities: parsed.seo_opportunities || [],
-      keyword_suggestions: parsed.keyword_suggestions || [],
+      keyword_suggestions: [
+        ...new Set([
+          ...(parsed.keyword_suggestions as string[] || []),
+          ...(parsed.seasonal_keyword_suggestions as string[] || []),
+        ])
+      ],
       structured_raw_text_summary: parsed.structured_raw_text_summary || "",
       source_signals: signals,
       provider_used: providerName,
