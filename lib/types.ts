@@ -14,6 +14,7 @@ export interface WorkflowState {
   selectedIdea: BlogIdea | null;
   writerResult: GeneratedBlog | null;
   userKeywords: string[];
+  collectionUrls: string[];
 }
 
 export interface SourceSignals {
@@ -64,6 +65,13 @@ export interface ExtractorOutput {
   extracted_at: string;
 }
 
+export interface RecommendedProduct {
+  name: string;
+  url: string;
+  description: string;
+  placement_suggestion: string;
+}
+
 export interface BlogIdea {
   id: string;
   title: string;
@@ -76,6 +84,7 @@ export interface BlogIdea {
   angle: string;
   outline: string[];
   suggested_cta: string;
+  recommended_products: RecommendedProduct[];
 }
 
 export interface ArchitectOutput {

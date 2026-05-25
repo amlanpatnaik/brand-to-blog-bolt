@@ -42,6 +42,7 @@ import type {
   BlogIdea,
   GeneratedBlog,
   LLMMode,
+  RecommendedProduct,
 } from '@/lib/types';
 
 // ===================== STAR FIELD =====================
@@ -740,16 +741,21 @@ function ExtractorPhase({
   error,
   userKeywords,
   onKeywordsChange,
+  collectionUrls,
+  onCollectionUrlsChange,
 }: {
   result: ExtractorOutput | null;
-  onContinue: (keywords: string[]) => void;
+  onContinue: (keywords: string[], collectionUrls: string[]) => void;
   onRetry: () => void;
   error: string | null;
   userKeywords: string[];
   onKeywordsChange: (kws: string[]) => void;
+  collectionUrls: string[];
+  onCollectionUrlsChange: (urls: string[]) => void;
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
+  const [collectionInput, setCollectionInput] = useState(collectionUrls.join(', '));
 
   const handleAddKeyword = useCallback(() => {
     const kw = newKeyword.trim();
@@ -1150,10 +1156,41 @@ function ExtractorPhase({
         </div>
       </div>
 
+      {/* Collection URLs */}
+      <div className="glass-panel p-6 mb-8">
+        <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
+          <Link2 size={16} className="text-cyan-400" />
+          Product / Service Collection URLs
+          <span className="ml-2 text-xs font-normal text-slate-500 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">Optional</span>
+        </h3>
+        <p className="text-slate-500 text-xs mb-4 leading-relaxed">
+          Paste one or more collection or category page URLs (comma-separated). The AI will browse these pages, identify the most relevant products or services for each blog idea, and weave them naturally into the article.
+        </p>
+        <textarea
+          value={collectionInput}
+          onChange={(e) => {
+            setCollectionInput(e.target.value);
+            const parsed = e.target.value
+              .split(',')
+              .map((u) => u.trim())
+              .filter((u) => u.length > 0);
+            onCollectionUrlsChange(parsed);
+          }}
+          placeholder="https://yourstore.com/collections/candles, https://yourstore.com/collections/gifts"
+          rows={3}
+          className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-cyan-500/50 transition-all resize-none leading-relaxed"
+        />
+        {collectionUrls.length > 0 && (
+          <p className="text-cyan-400 text-xs mt-2">
+            {collectionUrls.length} URL{collectionUrls.length > 1 ? 's' : ''} will be scanned during blog ideation
+          </p>
+        )}
+      </div>
+
       {/* CTA */}
       <div className="flex justify-center">
         <button
-          onClick={() => onContinue(userKeywords)}
+          onClick={() => onContinue(userKeywords, collectionUrls)}
           className="btn-cosmic px-8 py-4 rounded-xl font-semibold text-white text-base animate-pulse-glow"
         >
           Continue with Blog Idea Generation →
@@ -1258,6 +1295,25 @@ function BlogIdeaCard({
             {idea.outline.length > 3 && (
               <li className="text-xs text-slate-600">+{idea.outline.length - 3} more sections</li>
             )}
+          </ul>
+        </div>
+      )}
+
+      {/* Recommended products */}
+      {(idea.recommended_products ?? []).length > 0 && (
+        <div className="border-t border-white/8 pt-3">
+          <span className="text-slate-500 text-xs mb-2 flex items-center gap-1.5">
+            <Gift size={11} className="text-pink-400" />
+            Featured Products
+          </span>
+          <ul className="space-y-2">
+            {(idea.recommended_products as RecommendedProduct[]).map((p, i) => (
+              <li key={i} className="bg-white/3 border border-white/8 rounded-lg p-2.5 text-xs space-y-0.5">
+                <p className="text-white font-medium">{p.name}</p>
+                <p className="text-slate-400 leading-relaxed">{p.description}</p>
+                <p className="text-cyan-400/70 italic">{p.placement_suggestion}</p>
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -1732,6 +1788,7 @@ function makeInitialState(): WorkflowState {
     selectedIdea: null,
     writerResult: null,
     userKeywords: [],
+    collectionUrls: [],
   };
 }
 
@@ -1792,7 +1849,7 @@ export default function Home() {
 
   // ---- EXTRACTOR CONTINUE ----
   const handleExtractorContinue = useCallback(
-    async (keywords: string[]) => {
+    async (keywords: string[], collUrls: string[]) => {
       if (!state.extractorResult || !state.llmMode) return;
 
       updateState({
@@ -1800,6 +1857,7 @@ export default function Home() {
         errors: { ...state.errors, architect: null },
         currentPhase: 'architect',
         userKeywords: keywords,
+        collectionUrls: collUrls,
       });
 
       try {
@@ -1807,7 +1865,8 @@ export default function Home() {
           state.extractorResult,
           keywords,
           state.llmMode,
-          state.apiKey || undefined
+          state.apiKey || undefined,
+          collUrls
         );
         const result: ArchitectOutput = res.data ?? res;
         updateState({
@@ -1847,7 +1906,8 @@ export default function Home() {
           state.extractorResult,
           idea,
           state.llmMode,
-          state.apiKey || undefined
+          state.apiKey || undefined,
+          state.collectionUrls
         );
         const result: GeneratedBlog = res.data ?? res;
         updateState({
@@ -1908,6 +1968,8 @@ export default function Home() {
             error={state.errors.extractor || null}
             userKeywords={state.userKeywords}
             onKeywordsChange={(kws) => updateState({ userKeywords: kws })}
+            collectionUrls={state.collectionUrls}
+            onCollectionUrlsChange={(urls) => updateState({ collectionUrls: urls })}
           />
         )}
 

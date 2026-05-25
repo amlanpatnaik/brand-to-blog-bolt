@@ -24,7 +24,8 @@ export async function generateIdeas(
   extractorOutput: object,
   userKeywords: string[],
   llmMode: string,
-  apiKey?: string
+  apiKey?: string,
+  collectionUrls?: string[]
 ) {
   const res = await fetch(`${FUNCTIONS_BASE}/aibuddy-architect`, {
     method: 'POST',
@@ -34,6 +35,7 @@ export async function generateIdeas(
       user_keywords: userKeywords,
       llm_mode: llmMode,
       api_key: apiKey || null,
+      collection_urls: collectionUrls || [],
     }),
   });
   const data = await res.json();
@@ -45,7 +47,8 @@ export async function generateArticle(
   extractorOutput: object,
   selectedIdea: object,
   llmMode: string,
-  apiKey?: string
+  apiKey?: string,
+  collectionUrls?: string[]
 ) {
   const res = await fetch(`${FUNCTIONS_BASE}/aibuddy-writer`, {
     method: 'POST',
@@ -55,6 +58,7 @@ export async function generateArticle(
       selected_idea: selectedIdea,
       llm_mode: llmMode,
       api_key: apiKey || null,
+      collection_urls: collectionUrls || [],
     }),
   });
   const data = await res.json();

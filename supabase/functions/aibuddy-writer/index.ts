@@ -79,6 +79,24 @@ function buildWriterPrompt(extractor: Record<string, unknown>, idea: Record<stri
   const outline = (idea.outline as string[] || []).join("; ");
   const searchIntent = idea.search_intent || "informational";
   const cta = idea.suggested_cta || "";
+  const recommendedProducts = idea.recommended_products as Record<string, unknown>[] || [];
+
+  const productsSection = recommendedProducts.length > 0
+    ? `\nRECOMMENDED PRODUCTS / SERVICES TO FEATURE:
+${recommendedProducts.map((p, i) =>
+  `${i + 1}. ${p.name}
+   URL: ${p.url}
+   Description: ${p.description}
+   Placement: ${p.placement_suggestion}`
+).join("\n")}
+
+PRODUCT INTEGRATION RULES:
+- Weave each recommended product naturally into the article at the placement location specified above.
+- Do NOT write promotional or salesy copy. Integrate products as helpful, authentic recommendations within the narrative.
+- When mentioning a product, include its name and link it using markdown: [Product Name](url).
+- Describe what makes each product relevant to the reader's current need, activity, or season — not just what it is.
+- If a product fits multiple sections, choose the single best placement for maximum narrative flow.`
+    : "";
 
   return `You are a professional SEO & AEO Blog Writer AI. You write long-form, ranking-ready blog articles optimized for both traditional search engines and AI answer engines (ChatGPT, Perplexity, Gemini, etc.).
 
@@ -112,7 +130,7 @@ Suggested CTA: ${cta}
 
 TODAY'S DATE: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
 The current season is based on the above date. Do NOT assume autumn or any other season — derive it from the actual date above. Make the article feel current and timely for the present season and the next 1–2 months.
-
+${productsSection}
 Write a complete, long-form SEO blog article (2500-3500 words). Return as JSON:
 {
   "title": "final SEO-optimized title",
