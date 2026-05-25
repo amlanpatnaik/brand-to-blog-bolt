@@ -29,6 +29,10 @@ import {
   Image,
   Code2,
   ArrowLeft,
+  Calendar,
+  Sun,
+  Gift,
+  Newspaper,
 } from 'lucide-react';
 import { extractBrand, generateIdeas, generateArticle, checkHealth } from '@/lib/api';
 import type {
@@ -893,7 +897,126 @@ function ExtractorPhase({
             </ul>
           </div>
         )}
+
+        {/* Niche */}
+        {result.niche && (
+          <div className="glass-panel p-5 card-hover">
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb size={15} className="text-amber-400" />
+              <h3 className="text-white text-sm font-semibold">Niche</h3>
+            </div>
+            <p className="text-slate-300 text-sm leading-relaxed">{result.niche}</p>
+          </div>
+        )}
+
+        {/* Blog Content Signals */}
+        {(result.blog_section_summary || (result.blog_post_examples ?? []).length > 0) && (
+          <div className="glass-panel p-5 card-hover sm:col-span-2">
+            <div className="flex items-center gap-2 mb-3">
+              <Newspaper size={15} className="text-cyan-400" />
+              <h3 className="text-white text-sm font-semibold">Blog Content Signals</h3>
+            </div>
+            {result.blog_section_summary && (
+              <p className="text-slate-400 text-xs leading-relaxed mb-3">{result.blog_section_summary}</p>
+            )}
+            {(result.blog_post_examples ?? []).length > 0 && (
+              <ul className="space-y-1.5">
+                {(result.blog_post_examples ?? []).slice(0, 5).map((ex, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                    <div className="w-1 h-1 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
+                    {ex}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Seasonal Context */}
+      {result.seasonal_context && (
+        <div className="mb-6">
+          <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <Calendar size={16} className="text-cyan-400" />
+            Seasonal &amp; Timing Context
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Current season */}
+            <div className="glass-panel p-4 card-hover">
+              <div className="flex items-center gap-2 mb-2">
+                <Sun size={13} className="text-amber-400" />
+                <span className="text-slate-400 text-xs font-medium">Current Season</span>
+              </div>
+              <p className="text-white text-sm font-semibold">{result.seasonal_context.current_season}</p>
+              <p className="text-slate-500 text-xs mt-1">{result.seasonal_context.current_date}</p>
+            </div>
+
+            {/* Upcoming events */}
+            {(result.seasonal_context.upcoming_events ?? []).length > 0 && (
+              <div className="glass-panel p-4 card-hover">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar size={13} className="text-cyan-400" />
+                  <span className="text-slate-400 text-xs font-medium">Upcoming Events</span>
+                </div>
+                <ul className="space-y-1">
+                  {result.seasonal_context.upcoming_events.slice(0, 5).map((ev, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-slate-300">
+                      <div className="w-1 h-1 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0" />
+                      {ev}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Gifting occasions */}
+            {(result.seasonal_context.gifting_occasions ?? []).length > 0 && (
+              <div className="glass-panel p-4 card-hover">
+                <div className="flex items-center gap-2 mb-2">
+                  <Gift size={13} className="text-pink-400" />
+                  <span className="text-slate-400 text-xs font-medium">Gifting Occasions</span>
+                </div>
+                <ul className="space-y-1">
+                  {result.seasonal_context.gifting_occasions.slice(0, 5).map((g, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-slate-300">
+                      <div className="w-1 h-1 rounded-full bg-pink-500 mt-1.5 flex-shrink-0" />
+                      {g}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Seasonal activities */}
+            {(result.seasonal_context.seasonal_activities ?? []).length > 0 && (
+              <div className="glass-panel p-4 card-hover sm:col-span-2 lg:col-span-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sun size={13} className="text-teal-400" />
+                  <span className="text-slate-400 text-xs font-medium">Seasonal Activities</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.seasonal_context.seasonal_activities.slice(0, 10).map((act, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded-full text-xs bg-teal-500/10 text-teal-300 border border-teal-500/20">
+                      {act}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Content opportunity */}
+            {result.seasonal_context.content_opportunity_summary && (
+              <div className="glass-panel p-4 card-hover sm:col-span-2 lg:col-span-3 border-l-2 border-cyan-500/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <Lightbulb size={13} className="text-cyan-400" />
+                  <span className="text-slate-400 text-xs font-medium">Content Opportunity</span>
+                </div>
+                <p className="text-slate-300 text-sm leading-relaxed">{result.seasonal_context.content_opportunity_summary}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* SEO Opportunities */}
       {(result.seo_opportunities ?? []).length > 0 && (

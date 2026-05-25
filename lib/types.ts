@@ -28,6 +28,15 @@ export interface SourceSignals {
   fetch_status: string;
 }
 
+export interface SeasonalContext {
+  current_date: string;
+  current_season: string;
+  upcoming_events: string[];
+  seasonal_activities: string[];
+  gifting_occasions: string[];
+  content_opportunity_summary: string;
+}
+
 export interface ExtractorOutput {
   input_url: string;
   canonical_url: string;
@@ -41,7 +50,11 @@ export interface ExtractorOutput {
   geo_signals: string[];
   trust_signals: string[];
   product_or_service_categories: string[];
+  niche: string;
   content_themes: string[];
+  blog_section_summary: string;
+  blog_post_examples: string[];
+  seasonal_context: SeasonalContext | null;
   seo_opportunities: string[];
   keyword_suggestions: string[];
   structured_raw_text_summary: string;
