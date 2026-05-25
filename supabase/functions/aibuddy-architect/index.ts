@@ -99,8 +99,9 @@ Existing Content Themes: ${themes}
 TARGET KEYWORDS: ${combinedKeywords.join(", ")}
 
 TIME & SEASON CONTEXT:
-- Use today's real-world date at inference time as the reference point.
-- Think about the next 4–8 weeks from now.
+- TODAY'S DATE: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+- The current season is based on the above date. Do NOT assume autumn or any other season — derive it from the actual date above.
+- Think about the next 4–8 weeks from now based on that date.
 - Identify relevant upcoming events, holidays, gifting occasions, and seasonal shifts for the brand's primary geography.
 - Identify what people typically like doing during this part of the year (spring cleaning, hiking, beach trips, gardening, cozy reading, movie nights at home, etc.).
 

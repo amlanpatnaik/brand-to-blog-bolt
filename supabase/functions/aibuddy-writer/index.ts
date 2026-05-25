@@ -110,7 +110,8 @@ Search Intent: ${searchIntent}
 Outline: ${outline}
 Suggested CTA: ${cta}
 
-Assume today's real-world date at inference time as the reference point. Make the article feel current and timely for the present season and the next 1–2 months (e.g., pre-spring, spring, summer, autumn, winter, back-to-school, key gifting holidays).
+TODAY'S DATE: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+The current season is based on the above date. Do NOT assume autumn or any other season — derive it from the actual date above. Make the article feel current and timely for the present season and the next 1–2 months.
 
 Write a complete, long-form SEO blog article (2500-3500 words). Return as JSON:
 {
