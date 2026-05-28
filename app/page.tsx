@@ -44,6 +44,7 @@ import type {
   LLMMode,
   RecommendedProduct,
   BruteForceConfig,
+  TrafficKeyword,
 } from '@/lib/types';
 
 // ===================== STAR FIELD =====================
@@ -1467,17 +1468,155 @@ function BlogIdeaCard({
   );
 }
 
+const INTENT_COLORS: Record<string, string> = {
+  informational: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
+  commercial: 'bg-teal-500/10 text-teal-300 border-teal-500/20',
+  transactional: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+  navigational: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
+};
+
+function TrafficKeywordPanel({
+  keywords,
+  onRegenerate,
+  onDismiss,
+}: {
+  keywords: TrafficKeyword[];
+  onRegenerate: (accepted: string[]) => void;
+  onDismiss: () => void;
+}) {
+  const [accepted, setAccepted] = useState<Set<string>>(new Set());
+
+  const toggle = useCallback((kw: string) => {
+    setAccepted((prev) => {
+      const next = new Set(prev);
+      if (next.has(kw)) next.delete(kw);
+      else next.add(kw);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setAccepted(new Set(keywords.map((k) => k.keyword)));
+  }, [keywords]);
+
+  const clearAll = useCallback(() => setAccepted(new Set()), []);
+
+  return (
+    <div className="glass-panel border border-amber-500/25 bg-amber-500/3 p-6 mb-8 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+            <TrendingUp size={16} className="text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-white font-semibold text-sm">
+              High-Traffic Keyword Opportunities
+            </h3>
+            <p className="text-slate-400 text-xs mt-0.5 leading-relaxed max-w-xl">
+              Based on search traffic patterns for your enforced topic, these keywords can drive additional organic SEO and AEO traffic. Select the ones you want to incorporate, then regenerate the blog ideas.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Keyword chips */}
+      <div className="flex flex-wrap gap-2 mb-5">
+        {keywords.map((tk) => {
+          const isSelected = accepted.has(tk.keyword);
+          return (
+            <button
+              key={tk.keyword}
+              onClick={() => toggle(tk.keyword)}
+              title={tk.rationale}
+              className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-150 ${
+                isSelected
+                  ? 'bg-amber-500/20 border-amber-400/50 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
+                  : 'bg-white/5 border-white/10 text-slate-400 hover:border-amber-500/30 hover:text-slate-200'
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isSelected ? 'bg-amber-400' : 'bg-slate-600'}`} />
+              {tk.keyword}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ml-0.5 ${INTENT_COLORS[tk.intent] || INTENT_COLORS.informational}`}>
+                {tk.intent.slice(0, 4)}
+              </span>
+              {isSelected && <Check size={11} className="text-amber-400 ml-0.5" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Rationale for selected */}
+      {accepted.size > 0 && (() => {
+        const selectedKws = keywords.filter((k) => accepted.has(k.keyword));
+        return (
+          <div className="mb-4 p-3 rounded-lg bg-white/3 border border-white/8 space-y-1.5">
+            {selectedKws.map((k) => (
+              <div key={k.keyword} className="flex items-start gap-2 text-xs">
+                <span className="text-amber-300 font-medium min-w-0 flex-shrink-0">{k.keyword}:</span>
+                <span className="text-slate-400 leading-relaxed">{k.rationale}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* Selection controls + actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 text-xs">
+          <button onClick={selectAll} className="text-amber-400 hover:text-amber-300 transition-colors">
+            Select all
+          </button>
+          <span className="text-slate-700">·</span>
+          <button onClick={clearAll} className="text-slate-500 hover:text-slate-300 transition-colors">
+            Clear
+          </button>
+          <span className="text-slate-600">
+            {accepted.size} of {keywords.length} selected
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onDismiss}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all text-xs font-medium"
+          >
+            Continue without
+          </button>
+          <button
+            onClick={() => onRegenerate(Array.from(accepted))}
+            disabled={accepted.size === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 transition-all text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={12} />
+            Regenerate with {accepted.size > 0 ? `${accepted.size} keyword${accepted.size > 1 ? 's' : ''}` : 'selected'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ArchitectPhase({
   result,
   onSelectIdea,
   onRetry,
+  onRegenerateWithKeywords,
   error,
 }: {
   result: ArchitectOutput | null;
   onSelectIdea: (idea: BlogIdea) => void;
   onRetry: () => void;
+  onRegenerateWithKeywords: (keywords: string[]) => void;
   error: string | null;
 }) {
+  const [trafficPanelDismissed, setTrafficPanelDismissed] = useState(false);
+
+  const trafficKeywords = (result?.traffic_keyword_suggestions ?? []).filter(
+    (tk) => !result?.selected_keywords.includes(tk.keyword)
+  );
+  const showTrafficPanel = trafficKeywords.length > 0 && !trafficPanelDismissed;
+
   if (error) {
     return (
       <section className="relative z-10 max-w-3xl mx-auto px-4 py-12">
@@ -1513,7 +1652,7 @@ function ArchitectPhase({
 
       {/* Strategy note */}
       {result.content_strategy_notes && (
-        <div className="glass-panel-accent p-5 mb-8">
+        <div className="glass-panel-accent p-5 mb-6">
           <div className="flex items-start gap-3">
             <Lightbulb size={18} className="text-cyan-400 flex-shrink-0 mt-0.5" />
             <div>
@@ -1524,6 +1663,18 @@ function ArchitectPhase({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Traffic keyword enrichment panel — only shown when brute force returned suggestions */}
+      {showTrafficPanel && (
+        <TrafficKeywordPanel
+          keywords={trafficKeywords}
+          onRegenerate={(accepted) => {
+            setTrafficPanelDismissed(true);
+            onRegenerateWithKeywords(accepted);
+          }}
+          onDismiss={() => setTrafficPanelDismissed(true)}
+        />
       )}
 
       {/* Selected keywords */}
@@ -2071,6 +2222,48 @@ export default function Home() {
     updateState({ currentPhase: 'architect', errors: { ...state.errors, writer: null } });
   }, [state.errors, updateState]);
 
+  // ---- REGENERATE WITH TRAFFIC KEYWORDS ----
+  const handleRegenerateWithTrafficKeywords = useCallback(
+    async (acceptedKeywords: string[]) => {
+      if (!state.extractorResult || !state.llmMode) return;
+
+      const updatedBruteForce = {
+        ...state.bruteForce,
+        keywords: Array.from(new Set([...state.bruteForce.keywords, ...acceptedKeywords])),
+      };
+
+      updateState({
+        phaseStatus: { ...state.phaseStatus, architect: 'running' },
+        errors: { ...state.errors, architect: null },
+        architectResult: null,
+        bruteForce: updatedBruteForce,
+      });
+
+      try {
+        const res = await generateIdeas(
+          state.extractorResult,
+          state.userKeywords,
+          state.llmMode,
+          state.apiKey || undefined,
+          state.collectionUrls,
+          updatedBruteForce
+        );
+        const result: ArchitectOutput = res.data ?? res;
+        updateState({
+          architectResult: result,
+          phaseStatus: { ...state.phaseStatus, architect: 'success' },
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Idea generation failed';
+        updateState({
+          phaseStatus: { ...state.phaseStatus, architect: 'error' },
+          errors: { ...state.errors, architect: message },
+        });
+      }
+    },
+    [state, updateState]
+  );
+
   const handleGenerateAnother = useCallback(() => {
     updateState({
       currentPhase: 'architect',
@@ -2122,6 +2315,7 @@ export default function Home() {
             result={state.architectResult}
             onSelectIdea={handleSelectIdea}
             onRetry={handleRetryArchitect}
+            onRegenerateWithKeywords={handleRegenerateWithTrafficKeywords}
             error={state.errors.architect || null}
           />
         )}

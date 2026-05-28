@@ -204,7 +204,15 @@ ${collectionSection}
 Generate exactly 10 blog ideas optimized for SEO and AEO (Answer Engine Optimization). Return JSON:
 {
   "selected_keywords": ["kw1", "kw2", "..."],
-  "content_strategy_notes": "brief 2-3 sentence strategy overview that explains how the 10 ideas connect to the brand's differentiators, current season/events, competitor gaps, and everyday-life use cases${isBruteForce ? ` — and how they all serve the enforced topic: ${bruteForce!.topic}` : ""}.",
+  "content_strategy_notes": "brief 2-3 sentence strategy overview that explains how the 10 ideas connect to the brand's differentiators, current season/events, competitor gaps, and everyday-life use cases${isBruteForce ? ` — and how they all serve the enforced topic: ${bruteForce!.topic}` : ""}.",${isBruteForce ? `
+  "traffic_keyword_suggestions": [
+    {
+      "keyword": "high-traffic search term directly related to the enforced topic and brand niche",
+      "intent": "informational|commercial|transactional|navigational",
+      "rationale": "1-sentence explanation of why this keyword drives organic SEO/AEO traffic for this topic — cite expected search volume tier (high/medium), searcher intent, and how it fits the brand"
+    }
+  ],` : `
+  "traffic_keyword_suggestions": [],`}
   "blog_ideas": [
     {
       "id": "idea-1",
@@ -240,7 +248,8 @@ ${isBruteForce ? `- BRUTE FORCE ENFORCED: Every idea MUST be anchored to the top
 - Mix of funnel stages (top/middle/bottom) and search intents (informational, commercial, transactional).
 - Titles must be specific and compelling, not generic.
 - For "why_it_can_rank", explicitly reference the searcher's intent at this time of year, competitor content patterns, and how this article provides a better experience.
-${hasCollections ? "- recommended_products must only include products genuinely relevant to that specific blog idea. Leave the array empty if no product is a strong natural fit." : "- recommended_products should be an empty array [] for all ideas."}`;
+${hasCollections ? "- recommended_products must only include products genuinely relevant to that specific blog idea. Leave the array empty if no product is a strong natural fit." : "- recommended_products should be an empty array [] for all ideas."}${isBruteForce ? `
+- traffic_keyword_suggestions: Generate exactly 12 high-traffic keywords for the enforced topic "${bruteForce!.topic}" in the context of ${brandName}'s niche. These must be realistic search terms with meaningful organic search volume. Include a mix of: head terms (broad, high volume), long-tail variations (specific, buyer-intent), question-format keywords (what/how/why — good for AEO/featured snippets), and seasonal/event-driven variations tied to the current date. Each keyword must NOT duplicate any keyword already in selected_keywords. Prioritize keywords that a content marketer would actually target to drive qualified organic traffic.` : ""}`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -341,10 +350,18 @@ Deno.serve(async (req: Request) => {
       })),
     }));
 
+    const trafficKwsRaw = (parsed.traffic_keyword_suggestions as Record<string, unknown>[] || []);
+    const trafficKeywordSuggestions = trafficKwsRaw.map((t) => ({
+      keyword: String(t.keyword || ""),
+      intent: (["informational", "commercial", "transactional", "navigational"].includes(String(t.intent)) ? t.intent : "informational") as string,
+      rationale: String(t.rationale || ""),
+    })).filter((t) => t.keyword.length > 0);
+
     const result = {
       selected_keywords: parsed.selected_keywords || combined.slice(0, 10),
       blog_ideas: blogIdeas,
       content_strategy_notes: parsed.content_strategy_notes || "",
+      traffic_keyword_suggestions: trafficKeywordSuggestions,
       provider_used: providerName,
       model_used: modelName,
     };

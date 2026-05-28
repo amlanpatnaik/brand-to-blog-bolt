@@ -95,10 +95,17 @@ export interface BlogIdea {
   recommended_products: RecommendedProduct[];
 }
 
+export interface TrafficKeyword {
+  keyword: string;
+  intent: 'informational' | 'commercial' | 'transactional' | 'navigational';
+  rationale: string;
+}
+
 export interface ArchitectOutput {
   selected_keywords: string[];
   blog_ideas: BlogIdea[];
   content_strategy_notes: string;
+  traffic_keyword_suggestions: TrafficKeyword[];
   provider_used: string;
   model_used: string;
 }
