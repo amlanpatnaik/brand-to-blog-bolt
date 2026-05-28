@@ -13,7 +13,7 @@ export interface WorkflowState {
   apiKey: string;
   activeProvider: string;
   activeModel: string;
-  currentPhase: 'hero' | 'extractor' | 'architect' | 'writer';
+  currentPhase: 'hero' | 'extractor' | 'architect' | 'writer' | 'history';
   phaseStatus: Record<string, PhaseStatus>;
   errors: Record<string, string | null>;
   extractorResult: ExtractorOutput | null;
@@ -121,6 +121,21 @@ export interface FAQItem {
   answer: string;
 }
 
+export interface SeoAeoScoreDetail {
+  criterion: string;
+  passed: boolean;
+  note: string;
+}
+
+export interface SeoAeoScore {
+  seo_score: number;
+  aeo_score: number;
+  overall_score: number;
+  seo_details: SeoAeoScoreDetail[];
+  aeo_details: SeoAeoScoreDetail[];
+  top_improvements: string[];
+}
+
 export interface GeneratedBlog {
   title: string;
   slug: string;
@@ -139,7 +154,27 @@ export interface GeneratedBlog {
   image_prompt_suggestions: string[];
   schema_suggestions: string[];
   markdown: string;
+  seo_aeo_score: SeoAeoScore;
   generated_at: string;
   provider_used: string;
   model_used: string;
+}
+
+export interface BlogHistoryEntry {
+  id: string;
+  session_id: string;
+  brand_name: string;
+  brand_url: string;
+  blog_title: string;
+  slug: string;
+  primary_keyword: string;
+  secondary_keywords: string[];
+  topic: string;
+  brute_force_enforced: boolean;
+  llm_provider: string;
+  llm_model: string;
+  seo_score: number;
+  aeo_score: number;
+  blog_data: GeneratedBlog;
+  created_at: string;
 }

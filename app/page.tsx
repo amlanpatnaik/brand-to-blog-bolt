@@ -33,7 +33,15 @@ import {
   Sun,
   Gift,
   Newspaper,
+  History,
+  Sheet,
+  Award,
+  ChevronUp,
+  Trash2,
+  ExternalLink,
+  BarChart2,
 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { extractBrand, generateIdeas, generateArticle, checkHealth } from '@/lib/api';
 import type {
   WorkflowState,
@@ -45,7 +53,25 @@ import type {
   RecommendedProduct,
   BruteForceConfig,
   TrafficKeyword,
+  BlogHistoryEntry,
+  SeoAeoScore,
 } from '@/lib/types';
+
+// ===================== SUPABASE CLIENT =====================
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  let id = localStorage.getItem('aibuddy_session_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('aibuddy_session_id', id);
+  }
+  return id;
+}
 
 // ===================== STAR FIELD =====================
 
@@ -432,8 +458,10 @@ function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) 
 
 function HeroPhase({
   onSubmit,
+  onViewHistory,
 }: {
   onSubmit: (url: string, llmMode: LLMMode, apiKey: string) => void;
+  onViewHistory: () => void;
 }) {
   const [url, setUrl] = useState('');
   const [llmMode, setLlmMode] = useState<LLMMode | null>(null);
@@ -536,7 +564,7 @@ function HeroPhase({
           </p>
 
           {/* Feature pills */}
-          <div className="flex flex-wrap gap-3 mb-10">
+          <div className="flex flex-wrap gap-3 mb-6">
             {featurePills.map((pill, i) => (
               <div
                 key={pill}
@@ -548,6 +576,16 @@ function HeroPhase({
               </div>
             ))}
           </div>
+
+          {/* History button */}
+          <button
+            onClick={onViewHistory}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all text-sm font-medium mb-10 animate-fade-in"
+            style={{ animationDelay: '0.4s' }}
+          >
+            <History size={15} className="text-cyan-400" />
+            Generated Blog History
+          </button>
 
           {/* Phase steps */}
           <div className="space-y-3">
@@ -1468,6 +1506,49 @@ function BlogIdeaCard({
   );
 }
 
+// ===================== CSV EXPORT =====================
+
+function escapeCsv(v: string | number | boolean | null | undefined): string {
+  const s = String(v ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function downloadBlogIdeasCsv(ideas: BlogIdea[], brandName: string) {
+  const headers = [
+    'Idea #', 'Title', 'Primary Keyword', 'Secondary Keywords',
+    'Search Intent', 'Funnel Stage', 'Why It Can Rank',
+    'Target Audience', 'Angle', 'Outline', 'Suggested CTA',
+    'Recommended Products',
+  ];
+
+  const rows = ideas.map((idea, i) => [
+    i + 1,
+    idea.title,
+    idea.primary_keyword,
+    idea.secondary_keywords.join('; '),
+    idea.search_intent,
+    idea.funnel_stage,
+    idea.why_it_can_rank,
+    idea.target_audience,
+    idea.angle,
+    idea.outline.join(' | '),
+    idea.suggested_cta,
+    (idea.recommended_products || []).map((p) => `${p.name} (${p.url})`).join('; '),
+  ].map(escapeCsv));
+
+  const csv = [headers.map(escapeCsv).join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `blog-ideas-${brandName.toLowerCase().replace(/\s+/g, '-') || 'export'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const INTENT_COLORS: Record<string, string> = {
   informational: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
   commercial: 'bg-teal-500/10 text-teal-300 border-teal-500/20',
@@ -1642,11 +1723,21 @@ function ArchitectPhase({
             {result.blog_ideas.length} blog ideas crafted. Select one to generate the full article.
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 self-start">
-          <div className="w-2 h-2 rounded-full bg-cyan-400" />
-          <span className="text-cyan-300 text-xs font-medium">
-            {result.provider_used} · {result.model_used}
-          </span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => downloadBlogIdeasCsv(result.blog_ideas, '')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 transition-all text-xs font-medium"
+            title="Download all blog ideas as spreadsheet"
+          >
+            <Sheet size={13} />
+            Export Ideas
+          </button>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+            <div className="w-2 h-2 rounded-full bg-cyan-400" />
+            <span className="text-cyan-300 text-xs font-medium">
+              {result.provider_used} · {result.model_used}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1733,15 +1824,165 @@ function FAQAccordion({ faqs }: { faqs: { question: string; answer: string }[] }
   );
 }
 
+// ---- SEO/AEO Score Gauge ----
+function ScoreRing({ score, label, color }: { score: number; label: string; color: string }) {
+  const r = 26;
+  const circ = 2 * Math.PI * r;
+  const fill = (score / 100) * circ;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative w-16 h-16">
+        <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+          <circle
+            cx="32" cy="32" r={r} fill="none"
+            stroke={color} strokeWidth="6"
+            strokeDasharray={`${fill} ${circ}`}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dasharray 0.8s ease' }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm">
+          {score}
+        </span>
+      </div>
+      <span className="text-slate-400 text-xs">{label}</span>
+    </div>
+  );
+}
+
+function SeoAeoScorePanel({
+  score,
+  onRegenerate,
+}: {
+  score: SeoAeoScore;
+  onRegenerate: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const overallColor = score.overall_score >= 85 ? '#22d3ee' : score.overall_score >= 65 ? '#f59e0b' : '#f87171';
+  const seoColor = score.seo_score >= 85 ? '#22d3ee' : score.seo_score >= 65 ? '#f59e0b' : '#f87171';
+  const aeoColor = score.aeo_score >= 85 ? '#22d3ee' : score.aeo_score >= 65 ? '#f59e0b' : '#f87171';
+
+  const gradeLabel = score.overall_score >= 90 ? 'Excellent' : score.overall_score >= 75 ? 'Good' : score.overall_score >= 60 ? 'Fair' : 'Needs Work';
+  const gradeColor = score.overall_score >= 90 ? 'text-cyan-300' : score.overall_score >= 75 ? 'text-teal-300' : score.overall_score >= 60 ? 'text-amber-300' : 'text-red-400';
+
+  return (
+    <div className="glass-panel border border-white/10 p-5 mb-6">
+      {/* Top row */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center flex-shrink-0">
+            <Award size={16} className="text-cyan-400" />
+          </div>
+          <div>
+            <h3 className="text-white font-semibold text-sm">SEO & AEO Score</h3>
+            <p className={`text-xs font-medium ${gradeColor}`}>{gradeLabel} — ranked against industry best practices</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onRegenerate}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all text-xs font-semibold"
+          >
+            <RefreshCw size={12} />
+            Improve Score
+          </button>
+        </div>
+      </div>
+
+      {/* Score rings */}
+      <div className="flex items-center justify-around py-3 mb-4 bg-white/2 rounded-xl border border-white/6">
+        <ScoreRing score={score.overall_score} label="Overall" color={overallColor} />
+        <div className="w-px h-12 bg-white/8" />
+        <ScoreRing score={score.seo_score} label="SEO" color={seoColor} />
+        <div className="w-px h-12 bg-white/8" />
+        <ScoreRing score={score.aeo_score} label="AEO" color={aeoColor} />
+      </div>
+
+      {/* Top improvements */}
+      {score.top_improvements.length > 0 && (
+        <div className="mb-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/15">
+          <p className="text-amber-300 text-xs font-semibold mb-2 flex items-center gap-1.5">
+            <Lightbulb size={12} /> Top improvements to boost your score
+          </p>
+          <ul className="space-y-1">
+            {score.top_improvements.map((tip, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                <span className="text-amber-400 font-bold flex-shrink-0">{i + 1}.</span>
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Expandable criteria */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors w-full justify-center pt-1"
+      >
+        {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        {expanded ? 'Hide' : 'Show'} detailed criteria breakdown
+      </button>
+
+      {expanded && (
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+          {/* SEO criteria */}
+          <div>
+            <h4 className="text-cyan-400 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <BarChart2 size={11} /> SEO Criteria ({score.seo_score}/100)
+            </h4>
+            <div className="space-y-1.5">
+              {score.seo_details.map((d, i) => (
+                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-white/3 text-xs">
+                  <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center ${d.passed ? 'bg-cyan-500/20' : 'bg-red-500/20'}`}>
+                    {d.passed ? <Check size={8} className="text-cyan-400" /> : <X size={8} className="text-red-400" />}
+                  </div>
+                  <div>
+                    <span className={`font-medium ${d.passed ? 'text-slate-200' : 'text-slate-400'}`}>{d.criterion}</span>
+                    <p className="text-slate-500 mt-0.5">{d.note}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* AEO criteria */}
+          <div>
+            <h4 className="text-teal-400 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <BarChart2 size={11} /> AEO Criteria ({score.aeo_score}/100)
+            </h4>
+            <div className="space-y-1.5">
+              {score.aeo_details.map((d, i) => (
+                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-white/3 text-xs">
+                  <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center ${d.passed ? 'bg-teal-500/20' : 'bg-red-500/20'}`}>
+                    {d.passed ? <Check size={8} className="text-teal-400" /> : <X size={8} className="text-red-400" />}
+                  </div>
+                  <div>
+                    <span className={`font-medium ${d.passed ? 'text-slate-200' : 'text-slate-400'}`}>{d.criterion}</span>
+                    <p className="text-slate-500 mt-0.5">{d.note}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WriterPhase({
   result,
   onGenerateAnother,
   onRetry,
+  onRegenerate,
   error,
 }: {
   result: GeneratedBlog | null;
   onGenerateAnother: () => void;
   onRetry: () => void;
+  onRegenerate: () => void;
   error: string | null;
 }) {
   const [activeTab, setActiveTab] = useState<WriterTab>('article');
@@ -1812,6 +2053,11 @@ function WriterPhase({
           </div>
         </div>
       </div>
+
+      {/* SEO/AEO Score Panel */}
+      {result.seo_aeo_score && (
+        <SeoAeoScorePanel score={result.seo_aeo_score} onRegenerate={onRegenerate} />
+      )}
 
       {/* Tab navigation */}
       <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/8 mb-6 overflow-x-auto">
@@ -2053,6 +2299,167 @@ function WriterPhase({
   );
 }
 
+// ===================== BLOG HISTORY SCREEN =====================
+
+function BlogHistoryScreen({ onBack, onViewBlog }: { onBack: () => void; onViewBlog: (entry: BlogHistoryEntry) => void }) {
+  const [entries, setEntries] = useState<BlogHistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sessionId = getSessionId();
+    if (!sessionId) { setLoading(false); return; }
+    supabase
+      .from('blog_history')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(100)
+      .then(({ data }) => {
+        setEntries((data as BlogHistoryEntry[]) || []);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    setDeletingId(id);
+    await supabase.from('blog_history').delete().eq('id', id);
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    setDeletingId(null);
+  }, []);
+
+  const scoreColor = (s: number) =>
+    s >= 85 ? 'text-cyan-300' : s >= 65 ? 'text-amber-300' : 'text-red-400';
+  const scoreBg = (s: number) =>
+    s >= 85 ? 'bg-cyan-500/10 border-cyan-500/20' : s >= 65 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-red-500/10 border-red-500/20';
+
+  return (
+    <section className="relative z-10 max-w-5xl mx-auto px-4 py-12 animate-fade-in-up">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <History size={20} className="text-cyan-400" />
+              Generated Blog History
+            </h2>
+            <p className="text-slate-400 text-sm mt-0.5">{entries.length} article{entries.length !== 1 ? 's' : ''} generated in this session</p>
+          </div>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {!loading && entries.length === 0 && (
+        <div className="glass-panel p-12 flex flex-col items-center justify-center text-center">
+          <FileText size={40} className="text-slate-700 mb-4" />
+          <h3 className="text-white font-semibold text-lg mb-2">No blogs generated yet</h3>
+          <p className="text-slate-500 text-sm max-w-xs">
+            Once you generate your first blog article, it will appear here for easy reference.
+          </p>
+          <button
+            onClick={onBack}
+            className="mt-6 btn-cosmic px-6 py-2.5 rounded-xl text-white text-sm font-semibold"
+          >
+            Generate Your First Blog
+          </button>
+        </div>
+      )}
+
+      {!loading && entries.length > 0 && (
+        <div className="space-y-3">
+          {entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="glass-panel p-5 hover:bg-white/5 transition-all group"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                {/* Scores */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className={`flex flex-col items-center px-3 py-2 rounded-xl border text-center min-w-[56px] ${scoreBg(entry.seo_score)}`}>
+                    <span className={`text-lg font-bold leading-none ${scoreColor(entry.seo_score)}`}>{entry.seo_score}</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">SEO</span>
+                  </div>
+                  <div className={`flex flex-col items-center px-3 py-2 rounded-xl border text-center min-w-[56px] ${scoreBg(entry.aeo_score)}`}>
+                    <span className={`text-lg font-bold leading-none ${scoreColor(entry.aeo_score)}`}>{entry.aeo_score}</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">AEO</span>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-semibold text-sm leading-snug mb-1 truncate">{entry.blog_title}</h3>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Globe size={10} />
+                      {entry.brand_name}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Target size={10} />
+                      {entry.primary_keyword}
+                    </span>
+                    {entry.brute_force_enforced && entry.topic && (
+                      <span className="flex items-center gap-1 text-amber-400/70">
+                        <Zap size={10} />
+                        {entry.topic}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Calendar size={10} />
+                      {new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+                  {entry.secondary_keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {entry.secondary_keywords.slice(0, 4).map((k) => (
+                        <span key={k} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/8 text-slate-500">{k}</span>
+                      ))}
+                      {entry.secondary_keywords.length > 4 && (
+                        <span className="text-[10px] text-slate-600">+{entry.secondary_keywords.length - 4} more</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-slate-600 px-2 py-1 rounded bg-white/3 border border-white/8">
+                    {entry.llm_provider} / {entry.llm_model}
+                  </span>
+                  <button
+                    onClick={() => onViewBlog(entry)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all text-xs font-medium"
+                  >
+                    <ExternalLink size={11} />
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleDelete(entry.id)}
+                    disabled={deletingId === entry.id}
+                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-600 hover:text-red-400 hover:border-red-500/20 transition-all disabled:opacity-40"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ===================== INITIAL STATE =====================
 
 function makeInitialState(): WorkflowState {
@@ -2181,6 +2588,28 @@ export default function Home() {
     updateState({ currentPhase: 'extractor', errors: { ...state.errors, architect: null } });
   }, [state.errors, updateState]);
 
+  // ---- SAVE TO HISTORY ----
+  const saveToHistory = useCallback(async (result: GeneratedBlog) => {
+    const sessionId = getSessionId();
+    if (!sessionId || !state.extractorResult) return;
+    await supabase.from('blog_history').insert({
+      session_id: sessionId,
+      brand_name: state.extractorResult.brand_name || '',
+      brand_url: state.extractorResult.input_url || '',
+      blog_title: result.title,
+      slug: result.slug,
+      primary_keyword: result.primary_keyword,
+      secondary_keywords: result.secondary_keywords || [],
+      topic: state.bruteForce.enforced ? state.bruteForce.topic : (result.primary_keyword || ''),
+      brute_force_enforced: state.bruteForce.enforced,
+      llm_provider: result.provider_used,
+      llm_model: result.model_used,
+      seo_score: result.seo_aeo_score?.seo_score ?? 0,
+      aeo_score: result.seo_aeo_score?.aeo_score ?? 0,
+      blog_data: result,
+    });
+  }, [state.extractorResult, state.bruteForce]);
+
   // ---- IDEA SELECTED ----
   const handleSelectIdea = useCallback(
     async (idea: BlogIdea) => {
@@ -2206,6 +2635,7 @@ export default function Home() {
           writerResult: result,
           phaseStatus: { ...state.phaseStatus, writer: 'success' },
         });
+        saveToHistory(result);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Article generation failed';
         updateState({
@@ -2215,12 +2645,43 @@ export default function Home() {
         });
       }
     },
-    [state, updateState]
+    [state, updateState, saveToHistory]
   );
 
   const handleRetryWriter = useCallback(() => {
     updateState({ currentPhase: 'architect', errors: { ...state.errors, writer: null } });
   }, [state.errors, updateState]);
+
+  // ---- REGENERATE ARTICLE (improve score) ----
+  const handleRegenerateArticle = useCallback(async () => {
+    if (!state.extractorResult || !state.llmMode || !state.selectedIdea) return;
+    updateState({
+      phaseStatus: { ...state.phaseStatus, writer: 'running' },
+      errors: { ...state.errors, writer: null },
+      writerResult: null,
+    });
+    try {
+      const res = await generateArticle(
+        state.extractorResult,
+        state.selectedIdea,
+        state.llmMode,
+        state.apiKey || undefined,
+        state.collectionUrls
+      );
+      const result: GeneratedBlog = res.data ?? res;
+      updateState({
+        writerResult: result,
+        phaseStatus: { ...state.phaseStatus, writer: 'success' },
+      });
+      saveToHistory(result);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Article regeneration failed';
+      updateState({
+        phaseStatus: { ...state.phaseStatus, writer: 'error' },
+        errors: { ...state.errors, writer: message },
+      });
+    }
+  }, [state, updateState, saveToHistory]);
 
   // ---- REGENERATE WITH TRAFFIC KEYWORDS ----
   const handleRegenerateWithTrafficKeywords = useCallback(
@@ -2290,7 +2751,20 @@ export default function Home() {
       <main className="relative z-10">
         {/* HERO */}
         {state.currentPhase === 'hero' && (
-          <HeroPhase onSubmit={handleHeroSubmit} />
+          <HeroPhase
+            onSubmit={handleHeroSubmit}
+            onViewHistory={() => updateState({ currentPhase: 'history' })}
+          />
+        )}
+
+        {/* HISTORY */}
+        {state.currentPhase === 'history' && (
+          <BlogHistoryScreen
+            onBack={() => updateState({ currentPhase: 'hero' })}
+            onViewBlog={(entry) => {
+              updateState({ writerResult: entry.blog_data, currentPhase: 'writer' });
+            }}
+          />
         )}
 
         {/* EXTRACTOR */}
@@ -2326,6 +2800,7 @@ export default function Home() {
             result={state.writerResult}
             onGenerateAnother={handleGenerateAnother}
             onRetry={handleRetryWriter}
+            onRegenerate={handleRegenerateArticle}
             error={state.errors.writer || null}
           />
         )}
