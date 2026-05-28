@@ -43,6 +43,7 @@ import type {
   GeneratedBlog,
   LLMMode,
   RecommendedProduct,
+  BruteForceConfig,
 } from '@/lib/types';
 
 // ===================== STAR FIELD =====================
@@ -743,19 +744,25 @@ function ExtractorPhase({
   onKeywordsChange,
   collectionUrls,
   onCollectionUrlsChange,
+  bruteForce,
+  onBruteForceChange,
 }: {
   result: ExtractorOutput | null;
-  onContinue: (keywords: string[], collectionUrls: string[]) => void;
+  onContinue: (keywords: string[], collectionUrls: string[], bruteForce: BruteForceConfig) => void;
   onRetry: () => void;
   error: string | null;
   userKeywords: string[];
   onKeywordsChange: (kws: string[]) => void;
   collectionUrls: string[];
   onCollectionUrlsChange: (urls: string[]) => void;
+  bruteForce: BruteForceConfig;
+  onBruteForceChange: (bf: BruteForceConfig) => void;
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
   const [collectionInput, setCollectionInput] = useState(collectionUrls.join(', '));
+  const [bfCollectionInput, setBfCollectionInput] = useState(bruteForce.collectionUrls.join(', '));
+  const [bfKeywordInput, setBfKeywordInput] = useState('');
 
   const handleAddKeyword = useCallback(() => {
     const kw = newKeyword.trim();
@@ -1187,10 +1194,141 @@ function ExtractorPhase({
         )}
       </div>
 
+      {/* Brute Force Topic Mode */}
+      <div className={`glass-panel p-6 mb-8 transition-all duration-300 ${bruteForce.enforced ? 'border border-amber-500/30 bg-amber-500/3' : ''}`}>
+        {/* Header row with checkbox */}
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div>
+            <h3 className="text-white font-semibold flex items-center gap-2">
+              <Target size={16} className="text-amber-400" />
+              Brute Force Topic Mode
+              <span className="ml-1 text-xs font-normal text-slate-500 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">Optional</span>
+            </h3>
+            <p className="text-slate-500 text-xs mt-1 leading-relaxed max-w-xl">
+              Override the extraction keywords with a specific topic, custom keywords and collection URLs. When enforced, blog ideas will be built around this focus — all seasonal, product, and brand rules still apply.
+            </p>
+          </div>
+          {/* Enforce checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer flex-shrink-0 mt-0.5 select-none">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={bruteForce.enforced}
+                onChange={(e) => onBruteForceChange({ ...bruteForce, enforced: e.target.checked })}
+                className="sr-only"
+              />
+              <div className={`w-10 h-5 rounded-full transition-all duration-200 ${bruteForce.enforced ? 'bg-amber-500' : 'bg-white/10'}`} />
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200 shadow-sm ${bruteForce.enforced ? 'translate-x-5' : 'translate-x-0'}`} />
+            </div>
+            <span className={`text-xs font-medium ${bruteForce.enforced ? 'text-amber-400' : 'text-slate-500'}`}>
+              {bruteForce.enforced ? 'Enforced' : 'Enforce'}
+            </span>
+          </label>
+        </div>
+
+        <div className={`mt-5 space-y-4 transition-all duration-200 ${!bruteForce.enforced ? 'opacity-50 pointer-events-none' : ''}`}>
+          {/* Topic */}
+          <div>
+            <label className="text-slate-400 text-xs font-medium block mb-1.5">Topic / Focus</label>
+            <input
+              type="text"
+              value={bruteForce.topic}
+              onChange={(e) => onBruteForceChange({ ...bruteForce, topic: e.target.value })}
+              placeholder="e.g. summer self-care rituals, Father's Day gift guide, back-to-school wellness..."
+              className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-amber-500/50 transition-all"
+            />
+          </div>
+
+          {/* Brute force keywords */}
+          <div>
+            <label className="text-slate-400 text-xs font-medium block mb-1.5">Target Keywords</label>
+            <div className="flex flex-wrap gap-1.5 mb-2 min-h-[32px]">
+              {bruteForce.keywords.map((kw) => (
+                <span
+                  key={kw}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                >
+                  {kw}
+                  <button
+                    onClick={() => onBruteForceChange({ ...bruteForce, keywords: bruteForce.keywords.filter((k) => k !== kw) })}
+                    className="hover:text-white transition-colors ml-0.5"
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+              {bruteForce.keywords.length === 0 && (
+                <span className="text-slate-600 text-xs self-center">No keywords added yet.</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={bfKeywordInput}
+                onChange={(e) => setBfKeywordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const kw = bfKeywordInput.trim();
+                    if (kw && !bruteForce.keywords.includes(kw)) {
+                      onBruteForceChange({ ...bruteForce, keywords: [...bruteForce.keywords, kw] });
+                    }
+                    setBfKeywordInput('');
+                  }
+                }}
+                placeholder="Add keyword and press Enter..."
+                className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-amber-500/50 transition-all"
+              />
+              <button
+                onClick={() => {
+                  const kw = bfKeywordInput.trim();
+                  if (kw && !bruteForce.keywords.includes(kw)) {
+                    onBruteForceChange({ ...bruteForce, keywords: [...bruteForce.keywords, kw] });
+                  }
+                  setBfKeywordInput('');
+                }}
+                disabled={!bfKeywordInput.trim()}
+                className="px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Brute force collection URLs */}
+          <div>
+            <label className="text-slate-400 text-xs font-medium block mb-1.5">
+              Product / Collection URLs
+              <span className="ml-2 text-slate-600 font-normal">Optional — overrides the collection URLs above</span>
+            </label>
+            <textarea
+              value={bfCollectionInput}
+              onChange={(e) => {
+                setBfCollectionInput(e.target.value);
+                const parsed = e.target.value.split(',').map((u) => u.trim()).filter((u) => u.length > 0);
+                onBruteForceChange({ ...bruteForce, collectionUrls: parsed });
+              }}
+              placeholder="https://yourstore.com/collections/summer-sets, https://yourstore.com/products/gift-bundle"
+              rows={2}
+              className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-amber-500/50 transition-all resize-none"
+            />
+          </div>
+        </div>
+
+        {bruteForce.enforced && (
+          <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-amber-500/8 border border-amber-500/20">
+            <Lightbulb size={13} className="text-amber-400 mt-0.5 flex-shrink-0" />
+            <p className="text-amber-300/80 text-xs leading-relaxed">
+              Brute Force Mode is active. Blog ideas will be architected around <strong className="text-amber-300">{bruteForce.topic || 'your topic'}</strong>
+              {bruteForce.keywords.length > 0 && <> and <strong className="text-amber-300">{bruteForce.keywords.length} keyword{bruteForce.keywords.length > 1 ? 's' : ''}</strong></>}. Seasonal context, brand voice, and product rules still apply.
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* CTA */}
       <div className="flex justify-center">
         <button
-          onClick={() => onContinue(userKeywords, collectionUrls)}
+          onClick={() => onContinue(userKeywords, collectionUrls, bruteForce)}
           className="btn-cosmic px-8 py-4 rounded-xl font-semibold text-white text-base animate-pulse-glow"
         >
           Continue with Blog Idea Generation →
@@ -1789,6 +1927,7 @@ function makeInitialState(): WorkflowState {
     writerResult: null,
     userKeywords: [],
     collectionUrls: [],
+    bruteForce: { topic: '', keywords: [], collectionUrls: [], enforced: false },
   };
 }
 
@@ -1849,7 +1988,7 @@ export default function Home() {
 
   // ---- EXTRACTOR CONTINUE ----
   const handleExtractorContinue = useCallback(
-    async (keywords: string[], collUrls: string[]) => {
+    async (keywords: string[], collUrls: string[], bruteForce: BruteForceConfig) => {
       if (!state.extractorResult || !state.llmMode) return;
 
       updateState({
@@ -1858,6 +1997,7 @@ export default function Home() {
         currentPhase: 'architect',
         userKeywords: keywords,
         collectionUrls: collUrls,
+        bruteForce,
       });
 
       try {
@@ -1866,7 +2006,8 @@ export default function Home() {
           keywords,
           state.llmMode,
           state.apiKey || undefined,
-          collUrls
+          collUrls,
+          bruteForce
         );
         const result: ArchitectOutput = res.data ?? res;
         updateState({
@@ -1970,6 +2111,8 @@ export default function Home() {
             onKeywordsChange={(kws) => updateState({ userKeywords: kws })}
             collectionUrls={state.collectionUrls}
             onCollectionUrlsChange={(urls) => updateState({ collectionUrls: urls })}
+            bruteForce={state.bruteForce}
+            onBruteForceChange={(bf) => updateState({ bruteForce: bf })}
           />
         )}
 

@@ -25,7 +25,8 @@ export async function generateIdeas(
   userKeywords: string[],
   llmMode: string,
   apiKey?: string,
-  collectionUrls?: string[]
+  collectionUrls?: string[],
+  bruteForce?: { topic: string; keywords: string[]; collectionUrls: string[]; enforced: boolean }
 ) {
   const res = await fetch(`${FUNCTIONS_BASE}/aibuddy-architect`, {
     method: 'POST',
@@ -36,6 +37,7 @@ export async function generateIdeas(
       llm_mode: llmMode,
       api_key: apiKey || null,
       collection_urls: collectionUrls || [],
+      brute_force: bruteForce || null,
     }),
   });
   const data = await res.json();

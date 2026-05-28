@@ -1,6 +1,13 @@
 export type LLMMode = 'gemini_user' | 'openai_user' | 'app_default';
 export type PhaseStatus = 'idle' | 'validating' | 'running' | 'success' | 'error';
 
+export interface BruteForceConfig {
+  topic: string;
+  keywords: string[];
+  collectionUrls: string[];
+  enforced: boolean;
+}
+
 export interface WorkflowState {
   llmMode: LLMMode | null;
   apiKey: string;
@@ -15,6 +22,7 @@ export interface WorkflowState {
   writerResult: GeneratedBlog | null;
   userKeywords: string[];
   collectionUrls: string[];
+  bruteForce: BruteForceConfig;
 }
 
 export interface SourceSignals {
