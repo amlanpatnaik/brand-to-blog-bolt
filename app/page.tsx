@@ -2613,39 +2613,49 @@ export default function Home() {
   // ---- IDEA SELECTED ----
   const handleSelectIdea = useCallback(
     async (idea: BlogIdea) => {
-      if (!state.extractorResult || !state.llmMode) return;
-
-      updateState({
+      // Read current state directly to avoid stale closure issues
+      setState((prev) => ({
+        ...prev,
         selectedIdea: idea,
-        phaseStatus: { ...state.phaseStatus, writer: 'running' },
-        errors: { ...state.errors, writer: null },
+        phaseStatus: { ...prev.phaseStatus, writer: 'running' },
+        errors: { ...prev.errors, writer: null },
         currentPhase: 'writer',
-      });
+      }));
+
+      // Capture the values we need from state at call time
+      const extractorResult = state.extractorResult;
+      const llmMode = state.llmMode;
+      const apiKey = state.apiKey;
+      const collectionUrls = state.collectionUrls;
+
+      if (!extractorResult || !llmMode) return;
 
       try {
         const res = await generateArticle(
-          state.extractorResult,
+          extractorResult,
           idea,
-          state.llmMode,
-          state.apiKey || undefined,
-          state.collectionUrls
+          llmMode,
+          apiKey || undefined,
+          collectionUrls
         );
         const result: GeneratedBlog = res.data ?? res;
-        updateState({
+        setState((prev) => ({
+          ...prev,
           writerResult: result,
-          phaseStatus: { ...state.phaseStatus, writer: 'success' },
-        });
+          phaseStatus: { ...prev.phaseStatus, writer: 'success' },
+        }));
         saveToHistory(result);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Article generation failed';
-        updateState({
-          phaseStatus: { ...state.phaseStatus, writer: 'error' },
-          errors: { ...state.errors, writer: message },
-          currentPhase: 'architect',
-        });
+        setState((prev) => ({
+          ...prev,
+          phaseStatus: { ...prev.phaseStatus, writer: 'error' },
+          errors: { ...prev.errors, writer: message },
+          // Stay on writer phase and show the error — do NOT redirect back to architect
+        }));
       }
     },
-    [state, updateState, saveToHistory]
+    [state.extractorResult, state.llmMode, state.apiKey, state.collectionUrls, saveToHistory]
   );
 
   const handleRetryWriter = useCallback(() => {
@@ -2654,34 +2664,39 @@ export default function Home() {
 
   // ---- REGENERATE ARTICLE (improve score) ----
   const handleRegenerateArticle = useCallback(async () => {
-    if (!state.extractorResult || !state.llmMode || !state.selectedIdea) return;
-    updateState({
-      phaseStatus: { ...state.phaseStatus, writer: 'running' },
-      errors: { ...state.errors, writer: null },
+    const extractorResult = state.extractorResult;
+    const llmMode = state.llmMode;
+    const selectedIdea = state.selectedIdea;
+    const apiKey = state.apiKey;
+    const collectionUrls = state.collectionUrls;
+
+    if (!extractorResult || !llmMode || !selectedIdea) return;
+
+    setState((prev) => ({
+      ...prev,
+      phaseStatus: { ...prev.phaseStatus, writer: 'running' },
+      errors: { ...prev.errors, writer: null },
       writerResult: null,
-    });
+    }));
+
     try {
-      const res = await generateArticle(
-        state.extractorResult,
-        state.selectedIdea,
-        state.llmMode,
-        state.apiKey || undefined,
-        state.collectionUrls
-      );
+      const res = await generateArticle(extractorResult, selectedIdea, llmMode, apiKey || undefined, collectionUrls);
       const result: GeneratedBlog = res.data ?? res;
-      updateState({
+      setState((prev) => ({
+        ...prev,
         writerResult: result,
-        phaseStatus: { ...state.phaseStatus, writer: 'success' },
-      });
+        phaseStatus: { ...prev.phaseStatus, writer: 'success' },
+      }));
       saveToHistory(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Article regeneration failed';
-      updateState({
-        phaseStatus: { ...state.phaseStatus, writer: 'error' },
-        errors: { ...state.errors, writer: message },
-      });
+      setState((prev) => ({
+        ...prev,
+        phaseStatus: { ...prev.phaseStatus, writer: 'error' },
+        errors: { ...prev.errors, writer: message },
+      }));
     }
-  }, [state, updateState, saveToHistory]);
+  }, [state.extractorResult, state.llmMode, state.selectedIdea, state.apiKey, state.collectionUrls, saveToHistory]);
 
   // ---- REGENERATE WITH TRAFFIC KEYWORDS ----
   const handleRegenerateWithTrafficKeywords = useCallback(
